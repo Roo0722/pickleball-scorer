@@ -37,6 +37,12 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         persist()
     }
 
+    /** The scorer confirmed the teams have switched ends. Not an undo step. */
+    fun ackSwitch() {
+        state = state?.copy(pendingSwitch = false)
+        persist()
+    }
+
     fun undo() {
         if (history.isEmpty()) return
         state = history.removeAt(history.lastIndex)

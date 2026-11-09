@@ -11,7 +11,8 @@ service turns (Server 1 / 2), and a court diagram showing who serves from which 
 No Gradle wrapper is needed; the workflow installs Gradle 8.9 and JDK 17 itself.
 
 ## How to use
-- **Setup:** pick Doubles/Singles, play-to (11/15/21), names, and who serves first.
+- **Setup (portrait):** pick Doubles/Singles, play-to (11/15/21), names, who serves first, and whether to switch ends. Scoring switches to landscape automatically.
+- **Switch ends:** when a team first reaches the midpoint (6 of 11, 8 of 15, 11 of 21) a "Switch ends!" prompt appears and the court diagram flips. Players keep their right/left courts. Can be turned off in setup.
 - **During play, tap the team that WON the rally.**
   - Serving team taps its panel: +1 point, the server swaps courts.
   - Receiving team taps its panel: the server faulted. Doubles: Server 1 → Server 2 → side out. Singles: immediate side out.

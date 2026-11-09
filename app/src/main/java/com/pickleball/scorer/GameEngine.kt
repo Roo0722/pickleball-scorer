@@ -21,6 +21,8 @@ data class GameConfig(
     val players: List<List<String>>,
     val pointsToWin: Int = 11,
     val firstServer: Int = 0,
+    /** Teams swap ends once, when the first team reaches the midpoint (6 of 11, 8 of 15, 11 of 21). */
+    val switchEnds: Boolean = true,
 ) {
     companion object {
         fun default() = GameConfig(
@@ -41,9 +43,16 @@ data class GameState(
     /** For each team: index of the player standing in the RIGHT court (doubles only). */
     val rightIdx: List<Int>,
     val winner: Int? = null,
+    /** True once the teams have switched ends (team 1 then plays on the right half of the diagram). */
+    val swapped: Boolean = false,
+    /** True right after the midpoint is reached, until the scorer confirms the switch. */
+    val pendingSwitch: Boolean = false,
 ) {
     val isDoubles: Boolean get() = config.mode == Mode.DOUBLES
     val receivingTeam: Int get() = 1 - servingTeam
+
+    /** Score at which the teams switch ends: 6 for 11, 8 for 15, 11 for 21. */
+    val switchAt: Int get() = (config.pointsToWin + 1) / 2
 
     /** True when the server stands in the right (even) court. */
     fun serverRight(): Boolean =
@@ -88,10 +97,13 @@ data class GameState(
         val won = s >= config.pointsToWin && s - o >= 2
         val newRight = rightIdx.toMutableList()
         if (isDoubles) newRight[servingTeam] = 1 - newRight[servingTeam]
+        val doSwitch = config.switchEnds && !swapped && !won && s >= (config.pointsToWin + 1) / 2
         return copy(
             score = newScore,
             rightIdx = newRight,
             winner = if (won) servingTeam else null,
+            swapped = swapped || doSwitch,
+            pendingSwitch = doSwitch,
         )
     }
 

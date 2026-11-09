@@ -33,6 +33,7 @@ class GameStore(context: Context) {
         put("mode", c.mode.name)
         put("points", c.pointsToWin)
         put("first", c.firstServer)
+        put("switch", c.switchEnds)
         put("players", JSONArray().also { teams ->
             c.players.forEach { team -> teams.put(JSONArray().also { arr -> team.forEach { arr.put(it) } }) }
         })
@@ -49,6 +50,7 @@ class GameStore(context: Context) {
             players = players,
             pointsToWin = o.getInt("points"),
             firstServer = o.getInt("first"),
+            switchEnds = o.optBoolean("switch", true),
         )
     }
 
@@ -60,6 +62,8 @@ class GameStore(context: Context) {
         put("serverIdx", s.serverIdx)
         put("right", JSONArray(s.rightIdx))
         put("winner", s.winner ?: -1)
+        put("swapped", s.swapped)
+        put("pending", s.pendingSwitch)
     }
 
     private fun stateFromJson(o: JSONObject): GameState {
@@ -74,6 +78,8 @@ class GameStore(context: Context) {
             serverIdx = o.getInt("serverIdx"),
             rightIdx = listOf(right.getInt(0), right.getInt(1)),
             winner = if (winner < 0) null else winner,
+            swapped = o.optBoolean("swapped", false),
+            pendingSwitch = o.optBoolean("pending", false),
         )
     }
 

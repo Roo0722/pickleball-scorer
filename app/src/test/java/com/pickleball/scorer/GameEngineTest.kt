@@ -96,6 +96,43 @@ class GameEngineTest {
     }
 
     @Test
+    fun endsSwitchOnceAtMidpointForElevenPointGame() {
+        var s = GameEngine.newGame(doubles)
+        repeat(5) { s = s.rallyWon(0) }
+        assertFalse(s.swapped)
+        s = s.rallyWon(0) // 6 points
+        assertTrue(s.swapped)
+        assertTrue(s.pendingSwitch)
+        assertEquals(6, s.switchAt)
+        s = s.rallyWon(0)
+        assertFalse(s.pendingSwitch)
+        assertTrue(s.swapped) // stays switched, never switches back
+    }
+
+    @Test
+    fun midpointIsEightForFifteenAndElevenForTwentyOne() {
+        var s15 = GameEngine.newGame(doubles.copy(pointsToWin = 15))
+        repeat(7) { s15 = s15.rallyWon(0) }
+        assertFalse(s15.swapped)
+        s15 = s15.rallyWon(0)
+        assertTrue(s15.swapped)
+
+        var s21 = GameEngine.newGame(doubles.copy(pointsToWin = 21))
+        repeat(10) { s21 = s21.rallyWon(0) }
+        assertFalse(s21.swapped)
+        s21 = s21.rallyWon(0)
+        assertTrue(s21.swapped)
+    }
+
+    @Test
+    fun switchCanBeDisabled() {
+        var s = GameEngine.newGame(doubles.copy(switchEnds = false))
+        repeat(8) { s = s.rallyWon(0) }
+        assertFalse(s.swapped)
+        assertFalse(s.pendingSwitch)
+    }
+
+    @Test
     fun eventsAfterGameOverAreIgnored() {
         var s = GameEngine.newGame(doubles).copy(score = listOf(10, 3))
         s = s.rallyWon(0)

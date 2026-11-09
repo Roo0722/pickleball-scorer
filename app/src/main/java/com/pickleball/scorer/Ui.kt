@@ -1,6 +1,11 @@
 package com.pickleball.scorer
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +63,16 @@ private fun teamColor(team: Int) = if (team == 0) TeamBlue else TeamOrange
 @Composable
 fun AppRoot(vm: GameViewModel) {
     val state = vm.state
+    val activity = LocalContext.current as? Activity
+    val scoring = state != null
+    // Setup = portrait, scoring = landscape.
+    LaunchedEffect(scoring) {
+        activity?.requestedOrientation = if (scoring) {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
     if (state == null) {
         SetupScreen(initial = vm.config, onStart = vm::start)
     } else {
@@ -76,6 +91,7 @@ fun SetupScreen(initial: GameConfig, onStart: (GameConfig) -> Unit) {
     var n11 by rememberSaveable { mutableStateOf(initial.players[1].getOrElse(1) { "" }) }
     var points by rememberSaveable { mutableStateOf(initial.pointsToWin) }
     var first by rememberSaveable { mutableStateOf(initial.firstServer) }
+    var switchEnds by rememberSaveable { mutableStateOf(initial.switchEnds) }
 
     Column(
         Modifier
@@ -88,24 +104,40 @@ fun SetupScreen(initial: GameConfig, onStart: (GameConfig) -> Unit) {
     ) {
         Text("Pickleball Scorer", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Accent)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label("Game type")
+        Label("Game type")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Choice("Doubles", doubles) { doubles = true }
             Choice("Singles", !doubles) { doubles = false }
-            Spacer(Modifier.width(12.dp))
-            Label("Play to")
+        }
+
+        Label("Play to")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(11, 15, 21).forEach { p -> Choice("$p", points == p) { points = p } }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TeamEditor("TEAM 1", TeamBlue, doubles, n00, { n00 = it }, n01, { n01 = it }, Modifier.weight(1f))
-            TeamEditor("TEAM 2", TeamOrange, doubles, n10, { n10 = it }, n11, { n11 = it }, Modifier.weight(1f))
-        }
+        TeamEditor("TEAM 1", TeamBlue, doubles, n00, { n00 = it }, n01, { n01 = it }, Modifier.fillMaxWidth())
+        TeamEditor("TEAM 2", TeamOrange, doubles, n10, { n10 = it }, n11, { n11 = it }, Modifier.fillMaxWidth())
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label("First serve")
+        Label("First serve")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Choice("Team 1", first == 0) { first = 0 }
             Choice("Team 2", first == 1) { first = 1 }
+        }
+
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Switch ends at midpoint", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(
+                    "Teams swap sides when a team reaches ${(points + 1) / 2} (game to $points)",
+                    fontSize = 13.sp,
+                    color = Muted,
+                )
+            }
+            Switch(checked = switchEnds, onCheckedChange = { switchEnds = it })
         }
 
         Button(
@@ -125,6 +157,7 @@ fun SetupScreen(initial: GameConfig, onStart: (GameConfig) -> Unit) {
                         players = players,
                         pointsToWin = points,
                         firstServer = first,
+                        switchEnds = switchEnds,
                     ),
                 )
             },
@@ -250,6 +283,20 @@ fun ScoreScreen(vm: GameViewModel, s: GameState) {
             },
             confirmButton = { TextButton(onClick = vm::rematch) { Text("Rematch") } },
             dismissButton = { TextButton(onClick = vm::backToSetup) { Text("New setup") } },
+        )
+    }
+
+    if (s.pendingSwitch && s.winner == null) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Switch ends!") },
+            text = {
+                Text(
+                    "Score reached ${s.switchAt}. Teams swap sides of the court. " +
+                        "Each player keeps the same right/left court.",
+                )
+            },
+            confirmButton = { TextButton(onClick = vm::ackSwitch) { Text("Done") } },
         )
     }
 
@@ -421,26 +468,26 @@ private fun CourtView(s: GameState, modifier: Modifier) {
             .background(CourtGreen)
             .border(2.dp, Color.White, shape),
     ) {
-        HalfCourt(s, 0, Modifier.weight(1f).fillMaxHeight())
+        HalfCourt(s, if (s.swapped) 1 else 0, true, Modifier.weight(1f).fillMaxHeight())
         Box(
             Modifier
                 .width(5.dp)
                 .fillMaxHeight()
                 .background(Color.White),
         )
-        HalfCourt(s, 1, Modifier.weight(1f).fillMaxHeight())
+        HalfCourt(s, if (s.swapped) 0 else 1, false, Modifier.weight(1f).fillMaxHeight())
     }
 }
 
 @Composable
-private fun HalfCourt(s: GameState, team: Int, modifier: Modifier) {
+private fun HalfCourt(s: GameState, team: Int, onLeft: Boolean, modifier: Modifier) {
     Row(modifier) {
-        if (team == 0) {
-            ServiceArea(s, team, Modifier.weight(15f).fillMaxHeight())
+        if (onLeft) {
+            ServiceArea(s, team, true, Modifier.weight(15f).fillMaxHeight())
             Kitchen(Modifier.weight(7f).fillMaxHeight())
         } else {
             Kitchen(Modifier.weight(7f).fillMaxHeight())
-            ServiceArea(s, team, Modifier.weight(15f).fillMaxHeight())
+            ServiceArea(s, team, false, Modifier.weight(15f).fillMaxHeight())
         }
     }
 }
@@ -458,8 +505,9 @@ private fun Kitchen(modifier: Modifier) {
 }
 
 @Composable
-private fun ServiceArea(s: GameState, team: Int, modifier: Modifier) {
-    val topIsRight = team == 1
+private fun ServiceArea(s: GameState, team: Int, onLeft: Boolean, modifier: Modifier) {
+    // Facing the net: the left-half team's right hand points down, the right-half team's points up.
+    val topIsRight = !onLeft
     Column(modifier) {
         Cell(s, team, topIsRight, Modifier.weight(1f).fillMaxWidth())
         Cell(s, team, !topIsRight, Modifier.weight(1f).fillMaxWidth())

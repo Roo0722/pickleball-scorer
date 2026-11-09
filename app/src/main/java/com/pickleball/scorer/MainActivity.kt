@@ -1,5 +1,6 @@
 package com.pickleball.scorer
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -17,6 +18,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Setup is portrait, scoring is landscape (AppRoot keeps this in sync afterwards).
+        requestedOrientation = if (vm.state == null) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
 
         // Keep the screen awake while scoring and go full-screen (swipe to peek at system bars).
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
